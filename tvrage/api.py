@@ -45,7 +45,7 @@ class Episode(object):
         self.season = season
         try:
             self.airdate = date.fromtimestamp(mktime(strptime(airdate, '%Y-%m-%d')))
-        except ValueError:
+        except (ValueError, OverflowError):
             self.airdate = None 
         self.title = title
         self.link = link
@@ -209,3 +209,91 @@ class Show(object):
         """returns the nth season as dict of episodes"""
         return self.episodes[n]    
         
+class ShowInfo(object):
+    """represents a TV show info description from tvrage.com
+    
+    this class is kind of a wrapper around the following of tvrage's xml feeds:
+    * http://services.tvrage.com/feeds/showinfo.php?sid=SHOWID
+    * http://www.tvrage.com/feeds/episode_list.php?sid=SHOWID
+    """
+    def __init__(self, showid):
+        self.showid = showid
+        self.episodes = {}
+        
+        # the following properties will be populated dynamically
+        self.genres = []
+        self.showname = ''
+        self.showlink = ''
+        self.origin_country = ''
+        self.status = ''
+        self.classification = ''
+        self.started = 0
+        self.startdate = ''
+        self.ended = ''
+        self.runtime = 0
+        self.seasons = 0
+        
+        show = feeds.showinfo(self.showid)
+        # dynamically mapping the xml tags to properties:
+        for elem in show:
+            if not elem.tag == 'seasons': # we'll set this later 
+                    self.__dict__[elem.tag] = elem.text
+        
+        try:
+            self.genres = [g.text for g in show.find('genres')]
+        except TypeError:
+            pass
+        
+        # and now grabbing the episodes
+        eplist = feeds.episode_list(self.showid, node='Episodelist')
+
+        # populating the episode list
+        if eplist is not None:
+            for season in eplist:
+                try:
+                    snum = int(season.attrib['no'])
+                except KeyError:
+                    pass # TODO: adding handeling for specials and movies
+                    # bsp: http://www.tvrage.com/feeds/episode_list.php?sid=3519
+                else:
+                    self.episodes[snum] = Season()
+                    for episode in season:
+                        epnum = int(episode.find('seasonnum').text)
+                        self.episodes[snum][epnum] = Episode(
+                            self.showname,
+                            snum,
+                            episode.find('airdate').text,
+                            episode.find('title').text,
+                            episode.find('link').text,
+                            epnum,
+                            episode.find('prodnum').text,
+                        )
+                    if snum > 0:
+                        self.seasons += 1
+            try:
+                self.episodes[self.seasons].is_current = True
+            except KeyError:
+                pass
+        
+
+
+class Search(object):
+    """returns a list of ShowInfo objects
+    
+    this class is kind of a wrapper around the following of tvrage's xml feeds:
+    * http://services.tvrage.com/feeds/search.php?show=SHOWNAME
+    """
+    
+    def __init__(self, showname):
+        self.showname = showname
+        self.showinfo_list = []
+        
+        search = feeds.search(self.showname)
+        
+        for node in search:
+            sid = int(node[0].text)
+            self.showinfo_list.append(ShowInfo(sid))
+        
+    @property
+    def result(self):
+        return self.showinfo_list    
