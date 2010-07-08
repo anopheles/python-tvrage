@@ -277,23 +277,19 @@ class ShowInfo(object):
         
 
 
-class Search(object):
+
+def search(showname):
     """returns a list of ShowInfo objects
     
     this class is kind of a wrapper around the following of tvrage's xml feeds:
     * http://services.tvrage.com/feeds/search.php?show=SHOWNAME
     """
+    showinfo_list = []
+        
+    search = feeds.search(showname)
     
-    def __init__(self, showname):
-        self.showname = showname
-        self.showinfo_list = []
-        
-        search = feeds.search(self.showname)
-        
-        for node in search:
-            sid = int(node[0].text)
-            self.showinfo_list.append(ShowInfo(sid))
-        
-    @property
-    def result(self):
-        return self.showinfo_list    
+    for node in search:
+        sid = int(node[0].text)
+        showinfo_list.append(ShowInfo(sid))
+    
+    return showinfo_list  
