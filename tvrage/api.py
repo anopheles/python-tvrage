@@ -35,7 +35,7 @@ from time import mktime, strptime
 class ShowHasEnded(Exception): pass
 class NoNewEpisodesAnnounced(Exception): pass
 class FinaleMayNotBeAnnouncedYet(Exception): pass
-
+class NoInternetConnectionAvailable(Exception): pass
 
 class Episode(object):
     """represents an tv episode description from tvrage.com"""
@@ -288,8 +288,12 @@ def search(showname):
         
     search = feeds.search(showname)
     
-    for node in search:
-        sid = int(node[0].text)
-        showinfo_list.append(ShowInfo(sid))
+    if search is not None:
+        for node in search:
+            sid = int(node[0].text)
+            showinfo_list.append(ShowInfo(sid))
+    else:
+        raise NoInternetConnectionAvailable
+    
     
     return showinfo_list  
